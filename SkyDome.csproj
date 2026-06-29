@@ -1,0 +1,243 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{8E111C19-AF18-49EB-8FB6-D16499327FAD}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>SkyDome</RootNamespace>
+    <AssemblyName>SkyDome</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <LangVersion>8.0</LangVersion>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;Debug_Log</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE;Debug_Log</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>DEBUG;TRACE;Debug_Log</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>引用\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="base.net">
+      <HintPath>引用\base.net.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Entitas">
+      <HintPath>引用\Entitas.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Loxodon.Framework">
+      <HintPath>引用\Loxodon.Framework.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Loxodon.Framework.View">
+      <HintPath>引用\Loxodon.Framework.View.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>引用\Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="physics.net">
+      <HintPath>引用\physics.net.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SSJJ.Contract">
+      <HintPath>引用\SSJJ.Contract.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SSJJAsset_Library">
+      <HintPath>引用\SSJJAsset_Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SSJJBase_Library">
+      <HintPath>引用\SSJJBase_Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SSJJEntitas_Library">
+      <HintPath>引用\SSJJEntitas_Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SSJJMath_Library">
+      <HintPath>引用\SSJJMath_Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SSJJNetworking_Library">
+      <HintPath>引用\SSJJNetworking_Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SSJJPhysics_Library">
+      <HintPath>引用\SSJJPhysics_Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SSJJSpine_Library">
+      <HintPath>引用\SSJJSpine_Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="SSJJUserCmd_Library">
+      <HintPath>引用\SSJJUserCmd_Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="UnityEngine">
+      <HintPath>引用\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>引用\UnityEngine.CoreModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>引用\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>引用\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.PhysicsModule">
+      <HintPath>引用\UnityEngine.PhysicsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>引用\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>引用\UnityEngine.UI.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="weaponPredicateNet.net">
+      <HintPath>引用\weaponPredicateNet.net.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="zlib.net">
+      <HintPath>引用\zlib.net.dll</HintPath>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Cfg\Config.cs" />
+    <Compile Include="Cfg\ConfigManager.cs" />
+    <Compile Include="Cfg\Menu.cs" />
+    <Compile Include="Console\ConsoleManager.cs" />
+    <Compile Include="Console\ExternalConsoleWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Entity\PlayerInfo.cs" />
+    <Compile Include="Entity\PlayerUpdate.cs" />
+    <Compile Include="Extension\ReflectionExtensions.cs" />
+    <Compile Include="Feature\AIChatBot.cs" />
+    <Compile Include="Feature\AutoTrigger\MikadukiSwordDkl.cs" />
+    <Compile Include="Feature\AutoTrigger\NonStopDanceAuto.cs" />
+    <Compile Include="Feature\AutoTrigger\WindSpiritRecall.cs" />
+    <Compile Include="Feature\Legit\Aimbot.cs" />
+    <Compile Include="Feature\Legit\Triggerbot.cs" />
+    <Compile Include="Engine\MouseSimulator.cs" />
+    <Compile Include="Feature\Rage\AntiAim.cs" />
+    <Compile Include="Feature\Rage\Silentbot.cs" />
+    <Compile Include="Feature\NoRecoil.cs" />
+    <Compile Include="Feature\Resolver.cs" />
+    <Compile Include="Feature\Say.cs" />
+    <Compile Include="Feature\SkinChanger.cs" />
+    <Compile Include="Feature\Visuals\AntiAimIndicator.cs" />
+    <Compile Include="Feature\Visuals\BoneDebug.cs" />
+    <Compile Include="Feature\Visuals\BoundingBox3D.cs" />
+    <Compile Include="Feature\Visuals\C4Timer.cs" />
+    <Compile Include="Feature\Visuals\Chams.cs" />
+    <Compile Include="Feature\Visuals\Crosshair.cs" />
+    <Compile Include="Feature\Visuals\DamageDisplay.cs" />
+    <Compile Include="Feature\Visuals\FeatureIndicator.cs" />
+    <Compile Include="Feature\Visuals\ItemESP.cs" />
+    <Compile Include="Feature\Visuals\ItemOutline.cs" />
+    <Compile Include="Feature\Visuals\MoveEntityESP.cs" />
+    <Compile Include="Feature\Visuals\Radar.cs" />
+    <Compile Include="Feature\Visuals\SceneBuffESP.cs" />
+    <Compile Include="Feature\Visuals\SpectatorList.cs" />
+    <Compile Include="Feature\Visuals\SpeedDashboard.cs" />
+    <Compile Include="Feature\Visuals\Trace.cs" />
+    <Compile Include="Feature\Visuals\WallHack.cs" />
+    <Compile Include="Feature\WorldSettings.cs" />
+    <Compile Include="Loader.cs" />
+    <Compile Include="Main.cs" />
+    <Compile Include="MonoMod_Hook\CodePatcher.cs" />
+    <Compile Include="MonoMod_Hook\HookManager.cs" />
+    <Compile Include="MonoMod_Hook\HookPool.cs" />
+    <Compile Include="MonoMod_Hook\HookUtils.cs" />
+    <Compile Include="MonoMod_Hook\LDasm.cs" />
+    <Compile Include="MonoMod_Hook\MethodHook.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Console\QuickRuntimeConsoleGUI.cs" />
+    <Compile Include="Render\ImmediateRenderer.cs" />
+    <Compile Include="Render\OverLay.cs" />
+    <Compile Include="RuntimeState.cs" />
+    <Compile Include="Utilities\GlobalEvents.cs" />
+    <Compile Include="Utilities\MathUtility.cs" />
+    <Compile Include="Utilities\PlayerUtility.cs" />
+    <Compile Include="Utilities\ViewportUtility.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\menu_font.ttf" />
+    <EmbeddedResource Include="Resources\ProggyTiny.ttf" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+</Project>

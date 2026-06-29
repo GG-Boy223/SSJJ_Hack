@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36414.22
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SkyDome", "SkyDome.csproj", "{8E111C19-AF18-49EB-8FB6-D16499327FAD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8E111C19-AF18-49EB-8FB6-D16499327FAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E111C19-AF18-49EB-8FB6-D16499327FAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E111C19-AF18-49EB-8FB6-D16499327FAD}.Debug|x64.ActiveCfg = Debug|x64
+		{8E111C19-AF18-49EB-8FB6-D16499327FAD}.Debug|x64.Build.0 = Debug|x64
+		{8E111C19-AF18-49EB-8FB6-D16499327FAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E111C19-AF18-49EB-8FB6-D16499327FAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8E111C19-AF18-49EB-8FB6-D16499327FAD}.Release|x64.ActiveCfg = Release|x64
+		{8E111C19-AF18-49EB-8FB6-D16499327FAD}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D157D780-1272-4022-A3FB-B6C13C3EB50A}
+	EndGlobalSection
+EndGlobal
