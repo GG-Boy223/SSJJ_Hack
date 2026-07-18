@@ -15,6 +15,7 @@ using Assets.Sources.Systems.UserCommand;
 using Assets.Sources.Ui.Model.Common;
 using Assets.Sources.Ui.ViewModel.Common;
 using Assets.Sources.Utils;
+using Assets.Sources.Utils.Weapon;
 using Assets.Sources.Utils.Playback;
 using config;
 using I2.Loc;
@@ -27,6 +28,7 @@ using SkyDome.Cfg;
 using SkyDome.Entity;
 using SkyDome.Extension;
 using SkyDome.Feature;
+using SkyDome.Feature.Backtrack;
 using SkyDome.Feature.Legit;
 using SkyDome.Features;
 using SkyDome.Utilities;
@@ -34,6 +36,7 @@ using SSJJBase.Singleton;
 using SSJJBase.Utility;
 using SSJJMath;
 using SSJJNetworking.Packet;
+using SSJJPhysics;
 using SSJJUserCmd;
 using System;
 using System.Collections;
@@ -45,6 +48,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
+using weapon;
 using zlib;
 using Vector3 = UnityEngine.Vector3;
 
@@ -169,10 +173,21 @@ public class HookManager
         [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
         public static byte[] GetUserCmdBytes_Original(SendUserCommandSystem self, LinkedList<UserCmd> sendCmdList, SnapshotsComponent snapshots, out int datalen, bool isTcp)
         {
-            //var firstCmd = sendCmdList.First.Value;
-            //firstCmd.RenderTime = timeRestore[i];
             datalen = 0;
             return null;
+        }
+
+        [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
+        public static TraceResult Fire_Original(
+            PlayerEntity player,
+            WeaponEntity weapon,
+            int randomSeed,
+            float range,
+            float[] spreadX,
+            float[] spreadY,
+            bool knife = false)
+        {
+            return default;
         }
 
         [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
@@ -372,6 +387,10 @@ public class HookManager
         CreateMonoHook(typeof(SendUserCommandSystem), "GetUserCmdBytes",
             typeof(HookManager).GetMethod(nameof(GetUserCmdBytes_Hook), s_bindingFlags),
             typeof(OriginalProxies).GetMethod(nameof(OriginalProxies.GetUserCmdBytes_Original), s_bindingFlags)
+        );
+        CreateMonoHook(typeof(FireUtility), "Fire",
+            typeof(HookManager).GetMethod(nameof(Fire_Hook), s_bindingFlags),
+            typeof(OriginalProxies).GetMethod(nameof(OriginalProxies.Fire_Original), s_bindingFlags)
         );
 
         // 帧率显示相关Hook
@@ -916,8 +935,6 @@ public class HookManager
     private static float s_currentPitch;
 
 
-    private static System.Collections.Generic.List<int> timeRestore = new System.Collections.Generic.List<int>();
-
     public static byte[] GetUserCmdBytes_Hook(
       SendUserCommandSystem sendSystem,
       LinkedList<UserCmd> userCommands,
@@ -930,6 +947,7 @@ public class HookManager
         bool isDead = Contexts.sharedInstance.player.myPlayerEntity?.IsDead() ?? true;
         if (isDead)
         {
+            BacktrackAimState.Reset();
             return OriginalProxies.GetUserCmdBytes_Original(sendSystem, userCommands, snapshots, out outputLength, isFirstCommand);
         }
 
@@ -956,7 +974,15 @@ public class HookManager
         int latency = Math.Min(snapshots.ReceiveSnapshotLatency, 255);
         s_commandWriter.WriteByte((byte)latency);
         s_commandWriter.WriteInt(firstCmd.Seq);
-        s_commandWriter.WriteInt(firstCmd.RenderTime);
+        int renderTime = firstCmd.RenderTime;
+        if (BacktrackManager.Enabled &&
+            BacktrackAimState.TargetEntityId != -1 &&
+            BacktrackAimState.AgeMilliseconds > 0)
+        {
+            renderTime -= BacktrackAimState.AgeMilliseconds;
+            firstCmd.PredicatedOnce = false;
+        }
+        s_commandWriter.WriteInt(renderTime);
         s_commandWriter.WriteInt(snapshots.LatestSnapshotSeqId);
 
         const int baseFlags = 0x0F | 0x20 | 0x10 | 0x80;
@@ -1009,9 +1035,6 @@ public class HookManager
             s_commandWriter.WriteByte((byte)finalFlags);
             s_commandWriter.Position = endPosition;
 
-            timeRestore.Add(cmd.RenderTime);
-            if (RuntimeState.BacktrackEnabled)
-                cmd.RenderTime -= RuntimeState.BacktrackMs;
             currentNode = currentNode.Next;
         }
 
@@ -1023,6 +1046,54 @@ public class HookManager
         outputLength = resultBuffer.Length;
 
         return resultBuffer;
+    }
+
+    public static TraceResult Fire_Hook(
+        PlayerEntity player,
+        WeaponEntity weapon,
+        int randomSeed,
+        float range,
+        float[] spreadX,
+        float[] spreadY,
+        bool knife = false)
+    {
+        var weaponInfo = weapon.basicInfo.Info;
+        float yaw = player.orientation.Yaw + player.GetPunchYaw() * 2f;
+        float pitch = player.orientation.Pitch + player.GetPunchPitch() * 2f;
+        if (player.move.ActThirdMove)
+        {
+            yaw = (float)player.basicInfo.MoveYaw;
+        }
+
+        double shotsFiredSpread = FireUtility.CalShotsFiredSpread(
+            weaponInfo.ShotsFiredSpreadMin,
+            weaponInfo.ShotsFiredSpreadMax,
+            weaponInfo.ShotsFiredSpreadTime,
+            weapon.attack.ShotsFired,
+            weaponInfo.AttackInterval);
+        Vector3D forward = ShootingDirUtils.CalculateShotingDir(
+            randomSeed,
+            yaw,
+            pitch,
+            weapon.spread.Spread,
+            weapon.spread.SpreadScaleY,
+            shotsFiredSpread);
+        TraceResult result = FireUtility.BulletTrace(
+            Contexts.sharedInstance.battleRoom.pyEngine.PyEngine,
+            player,
+            Contexts.sharedInstance.player,
+            range,
+            forward,
+            spreadX,
+            spreadY,
+            knife);
+
+        if (BacktrackManager.Enabled && BacktrackAimState.TargetEntityId != -1)
+        {
+            result.EntityId = BacktrackAimState.TargetEntityId;
+        }
+
+        return result;
     }
 
     #endregion

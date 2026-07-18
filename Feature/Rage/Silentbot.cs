@@ -4,6 +4,8 @@ using share;
 using Sharpen;
 using SkyDome.Cfg;
 using SkyDome.Entity;
+using SkyDome.Feature.Backtrack;
+using SkyDome.Feature.Legit;
 using SkyDome.Utilities;
 using SSJJBase.String;
 using SSJJMath;
@@ -42,6 +44,21 @@ public static class Silentbot
         {
             BoneHashes.Add(new IgnoreCaseString(boneName).GetHashCode());
         }
+    }
+
+    private static Vector3 GetRecordBonePosition(BacktrackRecord record, int boneIndex)
+    {
+        if (boneIndex == 0)
+        {
+            return record.HeadPosition;
+        }
+
+        if (boneIndex == 1)
+        {
+            return record.SpinePosition;
+        }
+
+        return record.BodyPosition;
     }
 
     public static Vector3 CalculateAimAngle(Vector3 startPos, Vector3 targetPos)
@@ -88,17 +105,12 @@ public static class Silentbot
 
     private static bool CanAim(PlayerInfo shooter, PlayerInfo target, Vector3 startPos, Vector3 endPos)
     {
-        Vector3 direction = VectorCoordConverter.UnityToSsjj((endPos - startPos).normalized);
-        return FireUtility.BulletTrace(
-            Contexts.sharedInstance.battleRoom.pyEngine.PyEngine,
+        return BacktrackTraceUtility.CanAim(
             shooter._entity,
-            Contexts.sharedInstance.player,
-            100000f,
-            new Vector3D(direction.x, direction.y, direction.z),
-            new float[3],
-            new float[3],
-            false
-        ).EntityId == target.Id;
+            target._entity,
+            startPos,
+            endPos,
+            true);
     }
 
     public static Vector3 FixPosition(PlayerInfo shooter, PlayerInfo target, Vector3 shooterPos, Vector3 targetPos)
@@ -159,7 +171,59 @@ public static class Silentbot
 
     public static bool SilentAimbot(List<PlayerInfo> players, PlayerInfo localPlayer, ref float yaw, ref float pitch)
     {
-        if (!Config.Silentbot) return false;
+        try
+        {
+            return SilentAimbotCore(players, localPlayer, ref yaw, ref pitch);
+        }
+        catch
+        {
+            BacktrackAimState.Reset();
+            throw;
+        }
+    }
+
+    private static bool SilentAimbotCore(List<PlayerInfo> players, PlayerInfo localPlayer, ref float yaw, ref float pitch)
+    {
+        if (localPlayer != null && localPlayer.IsDead)
+        {
+            BacktrackAimState.Reset();
+            return false;
+        }
+
+        if (!BacktrackManager.Enabled && BacktrackAimState.RecordIndex != -1)
+        {
+            BacktrackAimState.Reset();
+        }
+
+        if (BacktrackAimState.AutoAttackActive &&
+            BacktrackAimState.RecordIndex != -1 &&
+            BacktrackEntityState.HeldTarget != null &&
+            !BacktrackEntityState.HeldTarget.IsDead())
+        {
+            PlayerInfo heldTarget = new PlayerInfo(BacktrackEntityState.HeldTarget);
+            Vector3 heldLocalEyePos = VectorCoordConverter.SsjjToUnity(
+                localPlayer.Position +
+                new Vector3(0, 0, (float)localPlayer.Move.PyPlayerMove.GetViewHeight())
+            );
+            Vector3 targetPos = Aimbot.GetAimPosition(heldTarget);
+
+            if (CanAim(localPlayer, heldTarget, heldLocalEyePos, targetPos))
+            {
+                Vector3 aimAngle = FixPosition(localPlayer, heldTarget, heldLocalEyePos, targetPos);
+                yaw = aimAngle.y;
+                pitch = aimAngle.x;
+                return true;
+            }
+        }
+
+        if (!Config.Silentbot)
+        {
+            if (!Aimbot._isActive)
+            {
+                BacktrackAimState.Reset();
+            }
+            return false;
+        }
 
         int targetId = 0;
         float minDistance = float.MaxValue;
@@ -192,8 +256,40 @@ public static class Silentbot
                 PlayerHitBoxBrushUtility.UpdatePlayerAllHitBoxBrush(target._entity);
             }
 
-            foreach (int boneHash in BoneHashes)
+            List<BacktrackRecord> records = null;
+            if (BacktrackManager.Enabled)
             {
+                records = BacktrackManager.GetValidRecords(target.Id);
+            }
+
+            for (int boneIndex = 0; boneIndex < BoneHashes.Count; boneIndex++)
+            {
+                if (records != null)
+                {
+                    for (int recordIndex = 0; recordIndex < records.Count; recordIndex++)
+                    {
+                        BacktrackRecord record = records[recordIndex];
+                        Vector3 recordPosition = GetRecordBonePosition(record, boneIndex);
+                        if (recordPosition == Vector3.zero)
+                            continue;
+
+                        if (Camera.main == null) continue;
+
+                        Vector3 recordScreenPos = ViewportUtility.WorldPointToScreenPoint(recordPosition);
+                        if (recordScreenPos.z <= 0.01f) continue;
+
+                        if (CanAim(localPlayer, target, localEyePos, recordPosition))
+                        {
+                            BacktrackAimState.SelectFromSilentbot(recordIndex, record, target.Id);
+                            Vector3 aimAngle = FixPosition(localPlayer, target, localEyePos, recordPosition);
+                            yaw = aimAngle.y;
+                            pitch = aimAngle.x;
+                            return true;
+                        }
+                    }
+                }
+
+                int boneHash = BoneHashes[boneIndex];
                 if (!target._entity.hitBox.BonetTransform.TryGetValue(boneHash, out Transform boneTransform))
                     continue;
 
@@ -215,6 +311,7 @@ public static class Silentbot
 
                 if (CanAim(localPlayer, target, localEyePos, boneTransform.position))
                 {
+                    BacktrackAimState.Reset();
                     Vector3 aimAngle = FixPosition(localPlayer, target, localEyePos, boneTransform.position);
                     yaw = aimAngle.y;
                     pitch = aimAngle.x;
@@ -232,12 +329,17 @@ public static class Silentbot
 
         if (Config.AntiAim && bestTarget != null && CanAim(localPlayer, bestTarget, localEyePos, bestBone.position))
         {
+            BacktrackAimState.Reset();
             Vector3 aimAngle = FixPosition(localPlayer, bestTarget, localEyePos, bestBone.position);
             yaw = aimAngle.y;
             pitch = aimAngle.x;
             return true;
         }
 
+        if (!Aimbot._isActive)
+        {
+            BacktrackAimState.Reset();
+        }
         return false;
     }
 }

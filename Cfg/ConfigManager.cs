@@ -96,6 +96,11 @@ namespace SkyDome.Cfg
                         }
                     }
                 }
+
+                if (Config.BacktrackMaxMs <= 0)
+                {
+                    Config.BacktrackMaxMs = 200;
+                }
                 #if Debug_Log
                 global::System.Console.WriteLine($"[配置] 已加载配置: {configName}");
                 #endif

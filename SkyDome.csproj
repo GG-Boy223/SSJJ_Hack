@@ -171,6 +171,8 @@
     <Compile Include="Entity\PlayerUpdate.cs" />
     <Compile Include="Extension\ReflectionExtensions.cs" />
     <Compile Include="Feature\AIChatBot.cs" />
+    <Compile Include="Feature\BacktrackManager.cs" />
+    <Compile Include="Feature\BacktrackTraceUtility.cs" />
     <Compile Include="Feature\AutoTrigger\MikadukiSwordDkl.cs" />
     <Compile Include="Feature\AutoTrigger\NonStopDanceAuto.cs" />
     <Compile Include="Feature\AutoTrigger\WindSpiritRecall.cs" />
@@ -218,7 +220,6 @@
     <Compile Include="Console\QuickRuntimeConsoleGUI.cs" />
     <Compile Include="Render\ImmediateRenderer.cs" />
     <Compile Include="Render\OverLay.cs" />
-    <Compile Include="RuntimeState.cs" />
     <Compile Include="Utilities\GlobalEvents.cs" />
     <Compile Include="Utilities\MathUtility.cs" />
     <Compile Include="Utilities\PlayerUtility.cs" />

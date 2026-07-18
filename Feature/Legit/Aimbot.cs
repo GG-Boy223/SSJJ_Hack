@@ -3,10 +3,12 @@ using share;
 using SkyDome.Cfg;
 using SkyDome.Engine;
 using SkyDome.Entity;
+using SkyDome.Feature.Backtrack;
 using SkyDome.Render;
 using SkyDome.Utilities;
 using SSJJMath;
 using SSJJPhysics;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using weapon.utils;
@@ -19,6 +21,9 @@ namespace SkyDome.Feature.Legit
         private double _currentSpreadFactor;
         public static bool _isActive;
         public static PlayerInfo _currentTarget;
+        private static BacktrackRecord _selectedBacktrackRecord;
+        private static Vector3 _selectedBacktrackPosition;
+        private static float _selectedBacktrackCaptureTime;
         private Vector2 ScreenCenter => new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
 
         private void Start()
@@ -87,15 +92,25 @@ namespace SkyDome.Feature.Legit
         // 输入前处理
         private void OnPreInput()
         {
-            if (Config.Aimbot)
+            try
             {
-                UpdateTarget();
-                ProcessAiming();
+                if (Config.Aimbot)
+                {
+                    UpdateTarget();
+                    ProcessAiming();
+                }
+                else
+                {
+                    _currentTarget = null;
+                    _isActive = false;
+                    ResetBacktrackSelection();
+                }
             }
-            else
+            catch
             {
                 _currentTarget = null;
                 _isActive = false;
+                ResetBacktrackSelection();
             }
         }
 
@@ -151,8 +166,31 @@ namespace SkyDome.Feature.Legit
             return result.EntityId == target.Id;
         }
 
+        // 历史点沿用实时点相同的 BulletTrace 可见性判定，仅替换射线终点。
+        private bool IsVisible(PlayerInfo target, Vector3 targetPosition)
+        {
+            if (target == null || PlayerUpdate.MainCamera == null) return false;
+
+            Vector3 cameraPos = PlayerUpdate.MainCamera.transform.position;
+            Vector3 direction = (targetPosition - cameraPos).normalized;
+            Vector3 dirSsjj = VectorCoordConverter.UnityToSsjj(direction);
+
+            var result = FireUtility.BulletTrace(
+                Contexts.sharedInstance.battleRoom.pyEngine.PyEngine,
+                PlayerUpdate.LocalEntity._entity,
+                Contexts.sharedInstance.player,
+                10000f,
+                new Vector3D(dirSsjj.x, dirSsjj.y, dirSsjj.z),
+                new float[3],
+                new float[3],
+                false
+            );
+
+            return result.EntityId == target.Id;
+        }
+
         // 获取瞄准位置
-        private Vector3 GetAimPosition(PlayerInfo player)
+        internal static Vector3 GetAimPosition(PlayerInfo player)
         {
             Transform targetBone = null;
 
@@ -281,6 +319,90 @@ namespace SkyDome.Feature.Legit
             return targetBone != null ? targetBone.position : player.GetPlayerTransform(player.PlayerName).position;
         }
 
+        private static Vector3 GetBacktrackAimPosition(BacktrackRecord record)
+        {
+            if (Config.AimPos == 0 || Config.AimPos == 1)
+            {
+                return record.HeadPosition;
+            }
+            if (Config.AimPos == 2 || Config.AimPos == 3)
+            {
+                return record.SpinePosition;
+            }
+            return record.BodyPosition;
+        }
+
+        private static void ResetBacktrackSelection()
+        {
+            BacktrackAimState.Reset();
+            _selectedBacktrackRecord = null;
+            _selectedBacktrackPosition = Vector3.zero;
+            _selectedBacktrackCaptureTime = 0f;
+        }
+
+        private static void SelectBacktrackRecord(
+            int index,
+            BacktrackRecord record,
+            int entityId,
+            Vector3 position)
+        {
+            try
+            {
+                BacktrackAimState.SelectFromAimbot(
+                    index,
+                    record,
+                    entityId,
+                    Config.AutoAttackInBacktrack);
+                _selectedBacktrackRecord = record;
+                _selectedBacktrackPosition = position;
+                _selectedBacktrackCaptureTime = record.CaptureTime;
+            }
+            catch
+            {
+                ResetBacktrackSelection();
+                throw;
+            }
+        }
+
+        private static bool RefreshHeldBacktrackSelection(PlayerInfo target)
+        {
+            try
+            {
+                List<BacktrackRecord> records = BacktrackManager.GetValidRecords(target.Id);
+                if (records == null)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < records.Count; i++)
+                {
+                    BacktrackRecord record = records[i];
+                    if (ReferenceEquals(record, _selectedBacktrackRecord) &&
+                        record.CaptureTime == _selectedBacktrackCaptureTime)
+                    {
+                        Vector3 position = GetBacktrackAimPosition(record);
+                        if (position == Vector3.zero)
+                        {
+                            return false;
+                        }
+                        SelectBacktrackRecord(
+                            i,
+                            record,
+                            target.Id,
+                            position);
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            catch
+            {
+                ResetBacktrackSelection();
+                throw;
+            }
+        }
+
         // 更新目标
         private void UpdateTarget()
         {
@@ -288,23 +410,65 @@ namespace SkyDome.Feature.Legit
             if (PlayerUpdate.MainCamera == null ||
                 PlayerUpdate.EntityList == null ||
                 PlayerUpdate.LocalEntity == null)
+            {
+                ResetBacktrackSelection();
                 return;
+            }
+
+            if (PlayerUpdate.LocalEntity.IsDead)
+            {
+                ResetBacktrackSelection();
+                return;
+            }
+
+            if (!BacktrackManager.Enabled)
+            {
+                ResetBacktrackSelection();
+            }
 
             if (_isActive && _currentTarget != null && !_currentTarget.IsDead)
             {
-                if (Config.VisibleCheck && !IsVisible(_currentTarget))
+                if (_selectedBacktrackRecord != null)
+                {
+                    try
+                    {
+                        if (BacktrackManager.Enabled &&
+                            RefreshHeldBacktrackSelection(_currentTarget) &&
+                            (!Config.VisibleCheck ||
+                             IsVisible(_currentTarget, _selectedBacktrackPosition)))
+                        {
+                            return;
+                        }
+                    }
+                    catch
+                    {
+                        ResetBacktrackSelection();
+                        throw;
+                    }
+
+                    _currentTarget = null;
+                    _isActive = false;
+                    ResetBacktrackSelection();
+                }
+                else if (Config.VisibleCheck && !IsVisible(_currentTarget))
                 {
                     _currentTarget = null;
                     _isActive = false;
+                    ResetBacktrackSelection();
                 }
                 else
                 {
+                    ResetBacktrackSelection();
                     return;
                 }
             }
 
             _currentTarget = null;
             float minAngleDelta = float.MaxValue;
+            BacktrackRecord bestRecord = null;
+            Vector3 bestRecordPosition = Vector3.zero;
+            int bestRecordIndex = -1;
+            int bestRecordEntityId = -1;
 
             Vector3 cameraForward = PlayerUpdate.MainCamera.transform.forward;
             Vector3 cameraPosition = PlayerUpdate.MainCamera.transform.position;
@@ -313,22 +477,90 @@ namespace SkyDome.Feature.Legit
             {
                 if (player.Team == PlayerUpdate.LocalEntity.Team || player.IsDead) continue;
 
-                if (Config.VisibleCheck && !IsVisible(player)) continue;
-
-                Vector3 targetPos = GetAimPosition(player);
-                Vector3 directionToTarget = (targetPos - cameraPosition).normalized;
-
-                // 计算角度差
-                float angleDelta = Vector3.Angle(cameraForward, directionToTarget);
-
-                // 检查是否在FOV范围内
-                if (angleDelta > Config.AimbotFOV * 0.5f) continue;
-
-                if (angleDelta < minAngleDelta)
+                if (!Config.VisibleCheck || IsVisible(player))
                 {
-                    minAngleDelta = angleDelta;
-                    _currentTarget = player;
+                    Vector3 targetPos = GetAimPosition(player);
+                    Vector3 directionToTarget = (targetPos - cameraPosition).normalized;
+
+                    // 计算角度差
+                    float angleDelta = Vector3.Angle(cameraForward, directionToTarget);
+
+                    // 检查是否在FOV范围内
+                    if (angleDelta <= Config.AimbotFOV * 0.5f &&
+                        angleDelta < minAngleDelta)
+                    {
+                        minAngleDelta = angleDelta;
+                        _currentTarget = player;
+                        bestRecord = null;
+                        bestRecordPosition = Vector3.zero;
+                        bestRecordIndex = -1;
+                        bestRecordEntityId = -1;
+                    }
                 }
+
+                if (!BacktrackManager.Enabled)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    List<BacktrackRecord> records =
+                        BacktrackManager.GetValidRecords(player.Id);
+                    if (records == null)
+                    {
+                        continue;
+                    }
+
+                    // GetValidRecords 已按新到旧排列；保持该顺序逐条参与现有角度竞争。
+                    for (int i = 0; i < records.Count; i++)
+                    {
+                        BacktrackRecord record = records[i];
+                        Vector3 targetPos = GetBacktrackAimPosition(record);
+                        if (targetPos == Vector3.zero)
+                        {
+                            continue;
+                        }
+
+                        if (Config.VisibleCheck && !IsVisible(player, targetPos))
+                        {
+                            continue;
+                        }
+
+                        Vector3 directionToTarget = (targetPos - cameraPosition).normalized;
+                        float angleDelta = Vector3.Angle(cameraForward, directionToTarget);
+                        if (angleDelta > Config.AimbotFOV * 0.5f ||
+                            angleDelta >= minAngleDelta)
+                        {
+                            continue;
+                        }
+
+                        minAngleDelta = angleDelta;
+                        _currentTarget = player;
+                        bestRecord = record;
+                        bestRecordPosition = targetPos;
+                        bestRecordIndex = i;
+                        bestRecordEntityId = player.Id;
+                    }
+                }
+                catch
+                {
+                    ResetBacktrackSelection();
+                    throw;
+                }
+            }
+
+            if (_currentTarget == null || bestRecord == null)
+            {
+                ResetBacktrackSelection();
+            }
+            else
+            {
+                SelectBacktrackRecord(
+                    bestRecordIndex,
+                    bestRecord,
+                    bestRecordEntityId,
+                    bestRecordPosition);
             }
         }
 
@@ -338,6 +570,7 @@ namespace SkyDome.Feature.Legit
             if (!Input.GetKey(Config.AimKey) || _currentTarget == null)
             {
                 _isActive = false;
+                ResetBacktrackSelection();
                 return;
             }
 
@@ -346,11 +579,14 @@ namespace SkyDome.Feature.Legit
             if (weapon != null && weapon.slot.Slot > 3)
             {
                 _isActive = false;
+                ResetBacktrackSelection();
                 return;
             }
 
             _isActive = true;
-            Vector3 targetPosition = GetAimPosition(_currentTarget);
+            Vector3 targetPosition = _selectedBacktrackRecord != null
+                ? _selectedBacktrackPosition
+                : GetAimPosition(_currentTarget);
 
             if (Config.Aimbot_Smooth)
             {

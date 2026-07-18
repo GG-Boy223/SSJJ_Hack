@@ -2,6 +2,7 @@
 using share;
 using SkyDome.Cfg;
 using SkyDome.Entity;
+using SkyDome.Feature.Backtrack;
 using SkyDome.Feature.AutoTrigger;
 using SkyDome.Feature.Legit;
 using SkyDome.Render;
@@ -14,6 +15,8 @@ namespace SkyDome.Feature.Visuals
 {
     public class WallHack : MonoBehaviour
     {
+        private static Texture2D _backtrackTexture;
+
         private readonly struct TextRule
         {
             public readonly Func<PlayerInfo, bool> IsEnabled;  // 开关判定
@@ -61,7 +64,93 @@ namespace SkyDome.Feature.Visuals
             foreach (var player in PlayerUpdate.EntityList)
             {
                 if (player.Team != PlayerUpdate.LocalEntity.Team && !player.IsDead)
+                {
+                    if (BacktrackManager.Enabled && Config.ShowBacktrack)
+                    {
+                        DrawBacktrack(player);
+                    }
+
                     DrawEnemy(player);
+                }
+            }
+        }
+
+        private static Texture2D CreateBacktrackTexture()
+        {
+            Texture2D texture = new Texture2D(16, 16, TextureFormat.RGBA32, false);
+            Color[] pixels = new Color[256];
+            Vector2 center = new Vector2(8f, 8f);
+            const float radius = 8f;
+
+            for (int y = 0; y < 16; y++)
+            {
+                for (int x = 0; x < 16; x++)
+                {
+                    float distance = Vector2.Distance(new Vector2(x, y), center);
+                    float alpha = Mathf.Clamp01(1f - distance / radius);
+                    alpha *= alpha;
+                    pixels[y * 16 + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            texture.SetPixels(pixels);
+            texture.Apply();
+            texture.hideFlags = HideFlags.HideAndDontSave;
+            return texture;
+        }
+
+        private static void DrawBacktrack(PlayerInfo player)
+        {
+            if (PlayerUpdate.MainCamera == null)
+            {
+                return;
+            }
+
+            try
+            {
+                List<BacktrackRecord> records = BacktrackManager.GetValidRecords(player.Id);
+                int count = records?.Count ?? 0;
+                if (count < 2)
+                {
+                    return;
+                }
+
+                if (_backtrackTexture == null)
+                {
+                    _backtrackTexture = CreateBacktrackTexture();
+                }
+
+                Color originalColor = GUI.color;
+                float inverseCount = 1f / count;
+                for (int i = 0; i < count; i++)
+                {
+                    float fade = 1f - i * inverseCount;
+                    BacktrackRecord record = records[i];
+                    Vector3 position = record.SpinePosition != Vector3.zero
+                        ? record.SpinePosition
+                        : record.BodyPosition + new Vector3(0f, 1f, 0f);
+                    Vector3 screenPosition = PlayerUpdate.MainCamera.WorldToScreenPoint(position);
+                    if (screenPosition.z <= 0.1f)
+                    {
+                        continue;
+                    }
+
+                    GUI.color = new Color(0.6f, 0.05f, 0.05f, fade * 0.95f);
+                    float size = 8f * fade + 4f;
+                    float halfSize = size * 0.5f;
+                    GUI.DrawTexture(
+                        new Rect(
+                            screenPosition.x - halfSize,
+                            Screen.height - screenPosition.y - halfSize,
+                            size,
+                            size),
+                        _backtrackTexture);
+                }
+
+                GUI.color = originalColor;
+            }
+            catch
+            {
             }
         }
 

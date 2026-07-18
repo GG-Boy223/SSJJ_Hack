@@ -6,6 +6,7 @@ using SkyDome.Feature;
 using SkyDome.Feature.Legit;
 using SkyDome.Feature.Visuals;
 using SkyDome.Feature.AutoTrigger;
+using SkyDome.Feature.Backtrack;
 using SkyDome.Features;
 using System.Collections.Generic;
 using System.IO;
@@ -24,6 +25,7 @@ namespace SkyDome
 
         private void Awake()
         {
+            BacktrackManager.Initialize();
             var thread = new Thread(Init)
             {
                 Priority = ThreadPriority.Highest

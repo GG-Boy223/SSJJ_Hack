@@ -510,6 +510,10 @@ namespace SkyDome.Features
                 GUILayout.EndHorizontal();
 
                 Key("Aim", "自瞄热键", Config.AimKey);
+                if (Config.Aimbot)
+                {
+                    Tog(ref Config.AutoAttackInBacktrack, " 回溯自动攻击 (仅锁影子时开火)");
+                }
             });
 
             if (!Config.Aimbot) return;
@@ -542,6 +546,19 @@ namespace SkyDome.Features
 
                 Tog(ref Config.Silentbot_OnKey, " 仅按键触发");
                 if (Config.Silentbot_OnKey) Key("Rage", "触发热键", Config.Silentbot_Key);
+            });
+
+            Sect("时序回溯");
+            Grp(() =>
+            {
+                Tog(ref Config.BacktrackEnabled, " 启用时序回溯 (Lag Compensation)");
+                if (!Config.BacktrackEnabled) return;
+
+                Sli("最大回溯窗口", ref Config.BacktrackMaxMs, 0, 5000, "ms");
+                GUILayout.Label("提示: 限制时间窗口，剔除服务器不认的“假残影”");
+                Tog(ref Config.BacktrackPrioritizeRealBody, " 真身优先 (真身可见时不锁影子)");
+                Tog(ref Config.BacktrackIgnoreWallShadows, " 隔墙不锁影 (且不在墙后盲绘)");
+                Tog(ref Config.ShowBacktrack, " 绘制有效回溯残影 (Backtrack Trail)");
             });
 
             Sect("解析器");
@@ -640,11 +657,6 @@ namespace SkyDome.Features
                 Tog(ref Config.AirStrafe_guoji, " 不减速八向(空格连跳)");
                 Key("Air", "八向热键", Config.AirStrafe_Key);
                 Tog(ref Config.SildeWalk, " 滑步");
-                Tog(ref SkyDome.RuntimeState.BacktrackEnabled, " 回溯 (Backtrack)");
-                if (SkyDome.RuntimeState.BacktrackEnabled)
-                {
-                    Sli("回溯毫秒", ref SkyDome.RuntimeState.BacktrackMs, 0, 500, "ms");
-                }
             });
         }
 

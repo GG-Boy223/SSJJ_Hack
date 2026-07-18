@@ -28,6 +28,13 @@ namespace SkyDome.Cfg
         public static bool SpreadPredict;                    // 扩散预测
         public static float Accurary;                        // 精准度
 
+        public static bool BacktrackEnabled = false;         // 开启回溯
+        public static int BacktrackMaxMs = 200;              // 最大回溯窗口
+        public static bool BacktrackPrioritizeRealBody = true;// 真身优先（当前未使用）
+        public static bool BacktrackIgnoreWallShadows = true; // 隔墙不锁影（当前未使用）
+        public static bool ShowBacktrack = false;             // 显示回溯残影
+        public static bool AutoAttackInBacktrack = false;     // 回溯目标保持
+
         public static bool Resolver;                         // 开启解析器
         public static bool Resolver_Random;                  // 随机角度解析
         public static KeyCode ResolverKey;                   // 强制解析热键
