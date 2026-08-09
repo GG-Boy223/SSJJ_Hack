@@ -2,8 +2,8 @@
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
     <ProjectGuid>{8E111C19-AF18-49EB-8FB6-D16499327FAD}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
@@ -14,37 +14,15 @@
     <LangVersion>8.0</LangVersion>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;Debug_Log</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+    <PlatformTarget>x64</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;Debug_Log</DefineConstants>
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <PlatformTarget>x64</PlatformTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-    <PlatformTarget>x64</PlatformTarget>
-    <OutputPath>bin\x64\Debug\</OutputPath>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <DefineConstants>DEBUG;TRACE;Debug_Log</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-    <PlatformTarget>x64</PlatformTarget>
-    <OutputPath>bin\x64\Release\</OutputPath>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
@@ -103,6 +81,10 @@
       <HintPath>引用\SSJJPhysics_Library.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="SSJJSceneLoader_Library">
+      <HintPath>引用\SSJJSceneLoader_Library.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="SSJJSpine_Library">
       <HintPath>引用\SSJJSpine_Library.dll</HintPath>
       <Private>False</Private>
@@ -141,6 +123,10 @@
       <HintPath>引用\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.TerrainPhysicsModule">
+      <HintPath>引用\UnityEngine.TerrainPhysicsModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine.TextRenderingModule">
       <HintPath>引用\UnityEngine.TextRenderingModule.dll</HintPath>
       <Private>False</Private>
@@ -173,6 +159,7 @@
     <Compile Include="Feature\AIChatBot.cs" />
     <Compile Include="Feature\BacktrackManager.cs" />
     <Compile Include="Feature\BacktrackTraceUtility.cs" />
+    <Compile Include="Feature\加速.cs" />
     <Compile Include="Feature\AutoTrigger\MikadukiSwordDkl.cs" />
     <Compile Include="Feature\AutoTrigger\NonStopDanceAuto.cs" />
     <Compile Include="Feature\AutoTrigger\WindSpiritRecall.cs" />
@@ -197,6 +184,7 @@
     <Compile Include="Feature\Visuals\ItemOutline.cs" />
     <Compile Include="Feature\Visuals\MoveEntityESP.cs" />
     <Compile Include="Feature\Visuals\Radar.cs" />
+    <Compile Include="Feature\Visuals\SceneLineOverlay.cs" />
     <Compile Include="Feature\Visuals\SceneBuffESP.cs" />
     <Compile Include="Feature\Visuals\SpectatorList.cs" />
     <Compile Include="Feature\Visuals\SpeedDashboard.cs" />
@@ -207,6 +195,7 @@
     <Compile Include="Main.cs" />
     <Compile Include="MonoMod_Hook\CodePatcher.cs" />
     <Compile Include="MonoMod_Hook\HookManager.cs" />
+    <Compile Include="MonoMod_Hook\hook.cs" />
     <Compile Include="MonoMod_Hook\HookPool.cs" />
     <Compile Include="MonoMod_Hook\HookUtils.cs" />
     <Compile Include="MonoMod_Hook\LDasm.cs" />
@@ -221,7 +210,9 @@
     <Compile Include="Render\ImmediateRenderer.cs" />
     <Compile Include="Render\OverLay.cs" />
     <Compile Include="Utilities\GlobalEvents.cs" />
+    <Compile Include="Utilities\Logger.cs" />
     <Compile Include="Utilities\MathUtility.cs" />
+    <Compile Include="Utilities\PenetrationDamageTelemetry.cs" />
     <Compile Include="Utilities\PlayerUtility.cs" />
     <Compile Include="Utilities\ViewportUtility.cs" />
   </ItemGroup>

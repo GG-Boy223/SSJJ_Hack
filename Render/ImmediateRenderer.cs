@@ -486,5 +486,58 @@ namespace SkyDome.Render
             GL.End();
             GL.PopMatrix();
         }
+
+        public static void DrawWorldLines(IReadOnlyList<Vector3> lineVertices, Color color, bool alwaysOnTop = false)
+        {
+            if (PlayerUpdate.MainCamera is null || lineVertices is null || lineVertices.Count < 2)
+            {
+                return;
+            }
+
+            EnsureMaterialInitialized();
+            if (_glMaterial is null)
+            {
+                return;
+            }
+
+            bool hasZTest = _glMaterial.HasProperty("_ZTest");
+            int previousZTest = 0;
+            if (hasZTest)
+            {
+                previousZTest = _glMaterial.GetInt("_ZTest");
+                _glMaterial.SetInt(
+                    "_ZTest",
+                    alwaysOnTop
+                        ? (int)UnityEngine.Rendering.CompareFunction.Always
+                        : (int)UnityEngine.Rendering.CompareFunction.LessEqual);
+            }
+
+            try
+            {
+                _glMaterial.SetPass(0);
+                GL.PushMatrix();
+                GL.LoadProjectionMatrix(PlayerUpdate.MainCamera.projectionMatrix);
+                GL.modelview = PlayerUpdate.MainCamera.worldToCameraMatrix;
+                GL.Begin(GL.LINES);
+                GL.Color(color);
+
+                int vertexCount = lineVertices.Count - (lineVertices.Count % 2);
+                for (int i = 0; i < vertexCount; i += 2)
+                {
+                    GL.Vertex(lineVertices[i]);
+                    GL.Vertex(lineVertices[i + 1]);
+                }
+
+                GL.End();
+                GL.PopMatrix();
+            }
+            finally
+            {
+                if (hasZTest)
+                {
+                    _glMaterial.SetInt("_ZTest", previousZTest);
+                }
+            }
+        }
     }
 }

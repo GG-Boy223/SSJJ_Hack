@@ -50,6 +50,7 @@ namespace SkyDome
             AddComponent<SpectatorList>("SpectatorListObject");                  // 观战列表
             AddComponent<AntiAimIndicator>("AntiAimIndicatorObject");            // 反自瞄指示器
             AddComponent<Trace>("TraceObject");                                  // 弹道轨迹
+            AddComponent<SceneLineOverlay>("SceneLineOverlayObject");            // 地图线段与墙体厚度采样
             AddComponent<Chams>("ChamsObject");                                  // 人物发光
             AddComponent<Radar>("RadarObject");                                  // 2D雷达
             AddComponent<C4Timer>("C4TimerObject");                              // C4倒计时
@@ -94,8 +95,10 @@ namespace SkyDome
             }
         }
 
-        private void Destroy()
+        private void OnDestroy()
         {
+            HookManager.RemoveAllHooks();
+
             foreach (var hooks in _hookList)
             {
                 if (hooks != null) { Destroy(hooks); }

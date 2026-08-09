@@ -113,6 +113,21 @@ public static class Silentbot
             true);
     }
 
+    private static bool CanAimThroughThinWall(PlayerInfo shooter, PlayerInfo target, Vector3 startPos, Vector3 endPos)
+    {
+        if (!Config.AllowThinWallAim || shooter == null || target == null)
+        {
+            return false;
+        }
+
+        ShotTraceInfo traceInfo = PlayerUtility.GetShotTraceInfoToTarget(shooter, target, startPos, endPos);
+        bool isBlockedByEnvironment =
+            traceInfo.State == ShotTraceState.HitWorld ||
+            traceInfo.State == ShotTraceState.HitOtherEntity;
+
+        return isBlockedByEnvironment && PenetrationDamageTelemetry.CanUpdateTarget(target);
+    }
+
     public static Vector3 FixPosition(PlayerInfo shooter, PlayerInfo target, Vector3 shooterPos, Vector3 targetPos)
     {
         float frameInterval = Contexts.sharedInstance.userCommand.commands.CommandToSendList.Last.Value.FrameInterval * 0.001f;
@@ -236,6 +251,20 @@ public static class Silentbot
             localPlayer.Position +
             new Vector3(0, 0, (float)localPlayer.Move.PyPlayerMove.GetViewHeight())
         );
+
+        PlayerInfo thinWallTarget = Aimbot._currentTarget;
+        if (thinWallTarget != null)
+        {
+            Vector3 thinWallTargetPosition = Aimbot.GetAimPosition(thinWallTarget);
+            if (CanAimThroughThinWall(localPlayer, thinWallTarget, localEyePos, thinWallTargetPosition))
+            {
+                BacktrackAimState.Reset();
+                Vector3 aimAngle = FixPosition(localPlayer, thinWallTarget, localEyePos, thinWallTargetPosition);
+                yaw = aimAngle.y;
+                pitch = aimAngle.x;
+                return true;
+            }
+        }
 
         foreach (PlayerInfo target in players)
         {

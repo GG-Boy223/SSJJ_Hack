@@ -13,6 +13,7 @@ public static class Configs
     {
         if (string.IsNullOrEmpty(name)) return;
 
+        NormalizeFeatureValues();
         ConfigManager.SaveConfig(name);
 
         if (!Names.Contains(name)) Names.Add(name);
@@ -24,6 +25,7 @@ public static class Configs
         if (string.IsNullOrEmpty(name)) return;
 
         ConfigManager.LoadConfig(name);
+        NormalizeFeatureValues();
         Current = name;
     }
 
@@ -52,6 +54,14 @@ public static class Configs
 
         // 加载 default 配置
         ConfigManager.LoadConfig("default");
+        NormalizeFeatureValues();
+    }
+
+    private static void NormalizeFeatureValues()
+    {
+        Config.CommandAccelerationLevel = Math.Max(
+            3,
+            Math.Min(50, Config.CommandAccelerationLevel));
     }
 }
 
@@ -482,6 +492,8 @@ namespace SkyDome.Features
                 Tog(ref Config.ShowSceneBuffESP, " 图标透视(品红色)");
                 Tog(ref Config.ShowItemESP, " 物品透视(白色)");
                 Tog(ref Config.ShowItemOutline, " 物品发光");
+                Tog(ref Config.ShowWallThickness, " 墙体厚度");
+                Tog(ref Config.ShowSceneLines, " 地图线段");
             });
 
             Sect("全局辅助");
@@ -508,6 +520,8 @@ namespace SkyDome.Features
                 Tog(ref Config.VisibleCheck, " 可见性检查");
                 Tog(ref Config.ShowAimLine, " 自瞄线");
                 GUILayout.EndHorizontal();
+
+                Tog(ref Config.AllowThinWallAim, " 薄墙锁定 (墙厚≤1.5m)");
 
                 Key("Aim", "自瞄热键", Config.AimKey);
                 if (Config.Aimbot)
@@ -657,6 +671,16 @@ namespace SkyDome.Features
                 Tog(ref Config.AirStrafe_guoji, " 不减速八向(空格连跳)");
                 Key("Air", "八向热键", Config.AirStrafe_Key);
                 Tog(ref Config.SildeWalk, " 滑步");
+            });
+
+            Sect("命令加速");
+            Grp(() =>
+            {
+                Tog(ref Config.CommandAccelerationEnabled, " 开启命令序号加速");
+                if (!Config.CommandAccelerationEnabled) return;
+
+                Sli("加速级别", ref Config.CommandAccelerationLevel, 3, 50);
+                GUILayout.Label("随机推进 Seq 并逐条通过 TCP 发送，兼容静默与回溯。");
             });
         }
 

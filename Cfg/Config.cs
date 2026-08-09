@@ -13,6 +13,7 @@ namespace SkyDome.Cfg
         public static bool Aimbot_Smooth;                    // 平滑自瞄开关
         public static float Aimbot_SmoothFactor = 5f;        // 平滑系数
         public static int AimPos;                            // 瞄准部位索引
+        public static bool AllowThinWallAim = true;          // 允许锁定精确墙厚不超过1.5米的目标
 
         public static bool Triggerbot;                       // 扳机
         public static bool ExcludeSniper;                    // 扳机排除狙击枪
@@ -60,6 +61,8 @@ namespace SkyDome.Cfg
         public static bool AirStrafe_guoji = false;          // 不减速八向(空格连跳)
         public static KeyCode AirStrafe_Key = KeyCode.Mouse4;// 八向连跳热键
         public static bool SildeWalk;                        // 幽灵滑步
+        public static bool CommandAccelerationEnabled;       // 用户命令序号加速
+        public static int CommandAccelerationLevel = 10;     // 序号随机步进上界（不含）
 
         public static bool WallHack = true;                  // 开启透视
         public static bool ShowRect = true;                  // 显示方框
@@ -89,6 +92,8 @@ namespace SkyDome.Cfg
         public static bool ShowItemOutline = true;           // 物品发光
         public static bool ShowMoveEntityESP = true;         // 移动实体透视(青色)
         public static bool ShowSceneBuffESP = true;          // 场景Buff透视(品红色)
+        public static bool ShowWallThickness = true;         // 显示目标方向的墙体厚度
+        public static bool ShowSceneLines;                   // 显示地图几何线段和薄墙候选
 
         public static bool Say;                              // 自动喊话
         public static string SendMsg;                        // 喊话内容

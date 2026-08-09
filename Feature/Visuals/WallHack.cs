@@ -52,6 +52,7 @@ namespace SkyDome.Feature.Visuals
                 return $"HP {p.Hp.ToString(fmt)}";
             }),
             new TextRule(p => Config.ShowDistance, p => $"{p.Distance:F0}m"),
+            new TextRule(p => Config.ShowWallThickness, GetWallThicknessDisplayText),
             new TextRule(p => Config.ShowC4 && p.HasC4, p => "【携带C4】", p => (Color?)Color.red),
             new TextRule(enabled: p => PlayerUpdate.LocalEntity != null &&PlayerUpdate.LocalEntity.CurrentWeaponName == "wind_spirit" &&WindSpiritRecall.EnemiesOnPaths != null &&IsPlayerOnWindSpiritPath(p),text: p => "⚠风铃路径",color: p => (Color?)new Color(1f, 0.5f, 0f))
 
@@ -59,7 +60,12 @@ namespace SkyDome.Feature.Visuals
 
         private void OnGUI()
         {
-            if (!Config.WallHack || PlayerUpdate.EntityList == null) return;
+            if (!Config.WallHack || PlayerUpdate.EntityList == null || PlayerUpdate.LocalEntity == null) return;
+
+            if (Config.ShowWallThickness)
+            {
+                PenetrationDamageTelemetry.RefreshEnemyObservations();
+            }
 
             foreach (var player in PlayerUpdate.EntityList)
             {
@@ -245,6 +251,9 @@ namespace SkyDome.Feature.Visuals
             {
                 if (!rule.IsEnabled(player)) continue;
 
+                string text = rule.GetText(player);
+                if (string.IsNullOrWhiteSpace(text)) continue;
+
                 if (isFirstTop)
                 {
                     topY = Screen.height - rect.yMax - 15f;
@@ -259,7 +268,7 @@ namespace SkyDome.Feature.Visuals
 
                 ImmediateRenderer.DrawString(
                     new Vector2(centerX, topY),
-                    rule.GetText(player),
+                    text,
                     textColor,
                     true, 10
                 );
@@ -272,6 +281,9 @@ namespace SkyDome.Feature.Visuals
             foreach (var rule in BottomRules)
             {
                 if (!rule.IsEnabled(player)) continue;
+
+                string text = rule.GetText(player);
+                if (string.IsNullOrWhiteSpace(text)) continue;
 
                 if (isFirstBot)
                 {
@@ -287,11 +299,18 @@ namespace SkyDome.Feature.Visuals
 
                 ImmediateRenderer.DrawString(
                     new Vector2(centerX, botY),
-                    rule.GetText(player),
+                    text,
                     textColor,
                     true, 10
                 );
             }
+        }
+
+        private static string GetWallThicknessDisplayText(PlayerInfo player)
+        {
+            return PenetrationDamageTelemetry.TryGetTargetWallThicknessDisplayText(player, out string wallThicknessText)
+                ? $"墙厚 {wallThicknessText}"
+                : null;
         }
 
         // 可见性检测

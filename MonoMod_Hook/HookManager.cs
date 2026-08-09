@@ -56,6 +56,8 @@ public class HookManager
 {
     private static readonly List<MethodHook> s_monoHooks = new List<MethodHook>();
     private static readonly BindingFlags s_bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+    private static readonly object s_hookLifecycleLock = new object();
+    private static bool s_hooksStarted;
     //缓存拦截的UDP包
     public static List<UdpPacket> chokedPackets = new List<UdpPacket>();
     private static bool isSendingChoked = false;
@@ -178,6 +180,14 @@ public class HookManager
         }
 
         [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
+        public static void SaveUserCmd_Original(
+            SendUserCommandSystem self,
+            CommandsComponent commands,
+            UserCmd command)
+        {
+        }
+
+        [MethodImpl(MethodImplOptions.NoOptimization | MethodImplOptions.NoInlining)]
         public static TraceResult Fire_Original(
             PlayerEntity player,
             WeaponEntity weapon,
@@ -263,31 +273,47 @@ public class HookManager
     // 移除所有Hook
     public static void RemoveAllHooks()
     {
-        if (s_monoHooks is null)
-            return;
-
-        foreach (MethodHook hook in s_monoHooks)
+        lock (s_hookLifecycleLock)
         {
-            try
+            foreach (MethodHook hook in s_monoHooks)
             {
-                if (hook.isHooked)
+                try
                 {
-                    hook.Uninstall();
+                    if (hook.isHooked)
+                    {
+                        hook.Uninstall();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    #if Debug_Log
+                    global::System.Console.WriteLine($"撤销钩子时出错: {ex.Message}");
+                    #endif
                 }
             }
-            catch (Exception ex)
-            {
-                #if Debug_Log
-                global::System.Console.WriteLine($"撤销钩子时出错: {ex.Message}");
-                #endif
-            }
-        }
 
-        s_monoHooks.Clear();
+            s_monoHooks.Clear();
+            s_hooksStarted = false;
+            加速.smethod_1();
+        }
     }
 
     #region Hook初始化
     public static void StartHook()
+    {
+        lock (s_hookLifecycleLock)
+        {
+            if (s_hooksStarted)
+            {
+                return;
+            }
+
+            s_hooksStarted = true;
+            InstallHooks();
+        }
+    }
+
+    private static void InstallHooks()
     {
         // 反截图相关Hook
         CreateMonoHook(typeof(AbstractCaptureSnapshot), "ScreenNow",
@@ -384,6 +410,16 @@ public class HookManager
         );
 
         // 用户命令发送相关Hook
+        CreateMonoHook(typeof(SendUserCommandSystem), "SaveUserCmd",
+            new[] { typeof(CommandsComponent), typeof(UserCmd) },
+            typeof(HookManager).GetMethod(nameof(SaveUserCmd_Hook), s_bindingFlags),
+            typeof(OriginalProxies).GetMethod(nameof(OriginalProxies.SaveUserCmd_Original), s_bindingFlags)
+        );
+        CreateMonoHook(typeof(SendUserCommandSystem), "SendUserCommands",
+            new[] { typeof(CommandsComponent), typeof(SnapshotsComponent) },
+            typeof(hook.Class87).GetMethod(nameof(hook.Class87.加速Hook), s_bindingFlags),
+            typeof(hook.Class87).GetMethod(nameof(hook.Class87.smethod_1), s_bindingFlags)
+        );
         CreateMonoHook(typeof(SendUserCommandSystem), "GetUserCmdBytes",
             typeof(HookManager).GetMethod(nameof(GetUserCmdBytes_Hook), s_bindingFlags),
             typeof(OriginalProxies).GetMethod(nameof(OriginalProxies.GetUserCmdBytes_Original), s_bindingFlags)
@@ -934,6 +970,53 @@ public class HookManager
     private static readonly BinaryDataWriter s_commandWriter = new BinaryDataWriter();
     private static float s_currentPitch;
 
+    internal static void PrepareOutgoingCommand(
+        ref UserCmd command,
+        bool initializePitch,
+        ref float yaw,
+        ref float pitch,
+        ref float moveForward,
+        ref float moveRight,
+        ref int buttons,
+        ref bool antiAimApplied)
+    {
+        if (initializePitch)
+        {
+            AntiAim.SetPitchAngle(ref pitch);
+        }
+
+        if (PlayerUpdate.LocalEntity != null &&
+            PlayerUpdate.LocalEntity._entity != null)
+        {
+            Bhop(ref command);
+        }
+        AntiAim.ExecuteAntiAim(
+            ref s_currentPitch,
+            command,
+            ref pitch,
+            ref yaw,
+            ref moveForward,
+            ref moveRight,
+            ref buttons,
+            ref antiAimApplied);
+    }
+
+    public static void SaveUserCmd_Hook(
+        SendUserCommandSystem sendSystem,
+        CommandsComponent commands,
+        UserCmd command)
+    {
+        if (加速.加速开关)
+        {
+            加速.smethod_0(commands, command);
+        }
+        else
+        {
+            加速.smethod_1();
+        }
+
+        OriginalProxies.SaveUserCmd_Original(sendSystem, commands, command);
+    }
 
     public static byte[] GetUserCmdBytes_Hook(
       SendUserCommandSystem sendSystem,
@@ -958,13 +1041,15 @@ public class HookManager
         int buttons = 0;
         bool isSelfMoving = SendUserCommandSystem.Record?.IsSelfMove() ?? true;
         bool antiAimApplied = false;
-        AntiAim.SetPitchAngle(ref pitch);
-        Bhop(ref firstCmd);
-        AntiAim.ExecuteAntiAim(
-                    ref s_currentPitch, firstCmd, ref pitch,
-                    ref yaw, ref moveForward, ref moveRight, ref buttons,
-                    ref antiAimApplied
-                );
+        PrepareOutgoingCommand(
+            ref firstCmd,
+            true,
+            ref yaw,
+            ref pitch,
+            ref moveForward,
+            ref moveRight,
+            ref buttons,
+            ref antiAimApplied);
         s_commandWriter.Reset();
         if (isFirstCommand)
         {
@@ -1006,12 +1091,15 @@ public class HookManager
         {
 
             var cmd = currentNode.Value;
-            Bhop(ref cmd);
-            AntiAim.ExecuteAntiAim(
-                ref s_currentPitch, cmd, ref pitch,
-                ref yaw, ref moveForward, ref moveRight, ref buttons,
-                ref antiAimApplied
-            );
+            PrepareOutgoingCommand(
+                ref cmd,
+                false,
+                ref yaw,
+                ref pitch,
+                ref moveForward,
+                ref moveRight,
+                ref buttons,
+                ref antiAimApplied);
 
             int positionMarker = s_commandWriter.Position;
             s_commandWriter.WriteByte(0);

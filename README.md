@@ -2,6 +2,17 @@
 
 > 本文以 `SkyDome.csproj` 当前显式编译项和现有源码为准。它描述的是代码实际行为，不把菜单文字、注释设想或未接入方法当成已经生效的逻辑。
 
+TG频道：t.me/F3xcpdv
+
+## 本次更新
+
+- 添加地图几何线段、墙体厚度测量与薄墙候选显示。
+- 普通自瞄和静默支持锁定墙厚不超过 `1.5m` 的目标。
+- 移植命令序号加速，并兼容静默、回溯、反自瞄、连跳和八向移动。
+- 修复 Hook 重复安装与销毁清理，工程仅保留 `Release|x64`。
+
+![沙漠地图线段与墙厚显示](./沙漠地图.png)
+
 ## 项目定位
 
 SSJJ_Hack 是一个面向 Unity/Mono 运行时研究的 C# 类库，目标框架为 .NET Framework 4.8。程序集通过 `Loader.Load()` 创建常驻 Unity 对象，由 `Main` 注册实体同步、输入替换、功能组件和本地方法 Hook。
@@ -16,8 +27,7 @@ SSJJ_Hack 是一个面向 Unity/Mono 运行时研究的 C# 类库，目标框架
 | 程序集名 | `SkyDome` |
 | 目标框架 | .NET Framework 4.8 |
 | C# 版本 | 8.0 |
-| 默认配置 | `Debug|AnyCPU` |
-| 主要发布配置 | `Release|x64` |
+| 构建配置 | `Release|x64` |
 | Unsafe | 已启用 |
 | Hook 实现 | `MonoMod_Hook/MethodHook.cs` + `CodePatcher` |
 | 游戏依赖 | `引用/` 下的 Unity、Entitas、物理、网络和游戏程序集 |
@@ -71,6 +81,7 @@ BacktrackManager.Update
 | `SpectatorList` | 观战者列表 |
 | `AntiAimIndicator` | 反自瞄方向提示 |
 | `Trace` | 客户端弹道线 |
+| `SceneLineOverlay` | 地图几何线段、墙厚标注和薄墙候选 |
 | `Chams` | 玩家轮廓 |
 | `Radar` | 屏幕中心雷达 |
 | `C4Timer` | C4 倒计时 |
@@ -94,7 +105,7 @@ BacktrackManager.Update
 | `SceneBuffESP` | 场景 Buff 文字 |
 | `SpeedDashboard` | 速度仪表 |
 
-注意：`Main.Init()` 在显式创建的高优先级 `Thread` 中调用多项 Unity API。Unity API 通常要求主线程；本文只记录当前实现，不将其视为线程安全保证。`Main` 的清理方法名为 `Destroy()`，不是 Unity 生命周期方法 `OnDestroy()`，因此 Unity 不会自动按常规生命周期调用该方法。
+注意：`Main.Init()` 在显式创建的高优先级 `Thread` 中调用多项 Unity API。Unity API 通常要求主线程；本文只记录当前实现，不将其视为线程安全保证。对象销毁时，`Main.OnDestroy()` 会撤销全部 Hook 并清理本实例创建的组件。
 
 ## 启动与生命周期类
 
@@ -106,7 +117,7 @@ BacktrackManager.Update
 - `EnsureMainComponent()` 保证根对象上存在 `Main`，随后通过 `DontDestroyOnLoad` 保持跨场景生命周期。
 - `_hookObject` 是静态去重引用；引用存在时只补 `Main`，不重复创建根对象。
 - 初始化异常时，仅当对象是本次新建才 `DestroyImmediate`，然后清空静态引用并重新抛出异常。
-- `Unload()` 销毁根对象并清引用，但没有显式调用 `HookManager.RemoveAllHooks()`；实际 Hook 是否恢复取决于对象销毁链中是否另有调用。
+- `Unload()` 销毁根对象并清引用；对象销毁会进入 `Main.OnDestroy()`，由其调用 `HookManager.RemoveAllHooks()`。
 
 ### `t.u`
 
@@ -123,7 +134,7 @@ BacktrackManager.Update
 - `Init()` 通过静态 `_hookObject` 和场景中名为 `HookObject` 的对象双重去重。若场景已经存在同名对象，会直接返回，不验证组件是否齐全。
 - 它为每个功能创建独立常驻对象，然后将游戏输入实现替换为 `MouseSimulator`，最后调用 `HookManager.StartHook()`。
 - `_hookList` 只记录本实例新建的功能对象；已存在的组件不会加入列表。
-- `Destroy()` 试图销毁 `_hookList` 和 `HookObject`，但方法名不符合 Unity 的 `OnDestroy` 约定。
+- `OnDestroy()` 先撤销全部 Hook，再销毁 `_hookList` 中的功能对象和 `HookObject`。
 
 ## 配置与菜单类
 
@@ -132,9 +143,9 @@ BacktrackManager.Update
 文件：`Cfg/Config.cs`
 
 - 这是纯静态字段配置容器，类本身不需要实例。所有菜单、功能和 Hook 直接读取这些字段。
-- 字段按普通自瞄、扳机、Silentbot、Backtrack、Resolver、AntiAim/FakeLag、视角、移动、ESP、视觉和杂项分组。
+- 字段按普通自瞄、扳机、Silentbot、Backtrack、Resolver、AntiAim/FakeLag、视角、移动、ESP、视觉和杂项分组；本次增加薄墙锁定、墙厚显示、地图线段和命令加速配置。
 - 默认值直接决定首次运行行为，例如 `Aimbot=true`、`Bhop=true`、`WallHack=true`、`BacktrackEnabled=false`、`BacktrackMaxMs=200`。
-- 类不做范围校验；滑块范围主要由 `Menu` 控制，配置文件可以写入菜单范围以外的数值。
+- 类本身不做范围校验；`Configs` 在保存和加载时把命令加速级别限制为 `3..50`，其他滑块范围仍主要由 `Menu` 控制。
 - `BacktrackPrioritizeRealBody` 与 `BacktrackIgnoreWallShadows` 当前只有配置和 UI 语义，没有运行时消费者。
 
 ### `SkyDome.Cfg.ConfigManager`
@@ -156,6 +167,7 @@ BacktrackManager.Update
 - `Init()` 从磁盘枚举名称，确保 `default` 存在并立即加载；不存在时会先把当前静态配置保存为默认文件。
 - `Save()`、`Load()` 和 `Delete()` 委托 `ConfigManager`。删除明确禁止 `default`，删除当前项后把 `Current` 改回 `default`，但不自动重新加载默认配置。
 - `Names` 只做内存去重；磁盘层是否成功由 `ConfigManager` 内部处理，调用方无法从返回值判断失败。
+- 保存、加载和初始化默认配置后会统一修正命令加速级别，避免配置文件写入越界值。
 
 ### `SkyDome.Features.Menu`
 
@@ -166,6 +178,7 @@ BacktrackManager.Update
 - `OnGUI()` 绘制 11 个页签：玩家、视觉、自瞄、暴力、反自瞄、视角、移动、世界、杂项、换肤、配置。
 - `forceThirdPerson` 是第三人称实际切换状态；`Config.ThirdPerson` 是功能总开关，相关 Hook 同时读取两者。
 - 回溯页把窗口限制在 `0..5000ms`，并显示两个当前不参与运行逻辑的选项。
+- 视觉页增加墙厚和地图线段开关，自瞄页增加薄墙锁定，移动页增加命令加速及 `3..50` 级别设置。
 - 换肤页直接调用 `SkinChanger` 的静态修改方法；配置页调用 `Configs` 保存、加载和删除。
 - 菜单关闭时设置 `useGUILayout=false`；按键绑定忽略 `Home`，`Escape` 会绑定为 `None`。
 
@@ -250,6 +263,21 @@ BacktrackManager.Update
 - `GetValidHeadNub()` 优先真实 `Bip01_HeadNub`；不存在时取 Head 第一个子节点，完全无子节点时创建 `fake_HeadNub` 并挂到 Head。
 - 创建假节点会永久修改角色 Transform 层级，没有统一销毁或去重名称之外的生命周期管理。
 - `Length()` 计算 Unity `Vector3` 三维长度，与 `Vector3.magnitude` 等价。
+- 新增射击方向、命中类型和目标射线查询，为墙厚采样、静默薄墙判断和观测记录提供统一结果。
+
+### `SkyDome.Utilities.PenetrationDamageTelemetry`
+
+文件：`Utilities/PenetrationDamageTelemetry.cs`
+
+- 缓存敌人方向的障碍物厚度观测，区分精确厚度、厚度下界和未解析结果。
+- 为 ESP 文本、薄墙锁定和地图候选线段提供墙厚数据；薄墙阈值为 `1.5m`。
+- 记录开枪前的武器、目标、距离、障碍物和墙厚信息，日志默认写入 `Application.persistentDataPath/SkyLogs`。
+
+### `Logger`
+
+文件：`Utilities/Logger.cs`
+
+- 以 UTF-8 写入错误和墙厚观测日志，默认路径不依赖本机盘符。
 
 ### `SkyDome.Utilities.ViewportUtility`
 
@@ -345,6 +373,7 @@ BacktrackManager.Update
 - `Start()` 订阅 `MouseSimulator.PreInputCallback`；当前没有对应退订，组件重复创建会导致重复回调。
 - `UpdateTarget()` 保留现有角度 FOV 规则：实时点和历史点都参与 `Vector3.Angle` 竞争，必须小于 `AimbotFOV/2`，严格更小的候选才覆盖当前最佳。
 - 实时和历史可见性都使用普通 `BulletTrace` 并要求命中目标当前 ID；普通 Aimbot 没有使用 `BacktrackTraceUtility`。
+- 实时目标被环境阻挡时，可按缓存的精确墙厚观测接受不超过 `1.5m` 的薄墙目标。
 - `GetAimPosition()` 支持 23 个实时骨骼选项；历史记录只保存头/脊柱/身体，因此历史映射为 AimPos 0/1 用头、2/3 用脊柱、其余用身体。
 - 历史记录获胜时保存记录引用、捕获时间、位置和共享选择；实时点获胜或目标丢失时立即 Reset。
 - `ProcessAiming()` 要求按住 AimKey 且武器槽位不大于 3。平滑模式注入一次性鼠标轴，非平滑模式直接写命令 Pitch/Yaw。
@@ -370,6 +399,7 @@ BacktrackManager.Update
 - `CanAim()` 统一调用 `BacktrackTraceUtility(..., true)`，实时点、历史点和 AutoAttack HeldTarget 都使用同一回溯可瞄判定。
 - 历史点成功后先 `SelectFromSilentbot`，再以历史坐标和当前速度做一帧预测、扩散与后坐力修正，写回 yaw/pitch 并返回 `true`。
 - 历史点失败后继续实时骨骼；实时点胜出会清回溯选择。
+- 自动攻击保持中的有效回溯分支优先执行；未处于保持状态时，Silentbot 可复用普通自瞄选中的薄墙目标。
 - `AutoAttackInBacktrack` 保持分支瞄的是 `BacktrackEntityState.HeldTarget` 的实时骨骼，不是历史记录坐标；这是当前设计行为。
 - 外层 catch 会 Reset 后重新抛出，最终由上层 Hook 路径处理。
 
@@ -481,6 +511,14 @@ BacktrackManager.Update
 - 回溯残影要求 WallHack、Backtrack 和 ShowBacktrack 同时开启；记录少于两条不画，脊柱优先、身体位置 `+1` 回退，尺寸为 `8*fade+4`。
 - 16x16 径向纹理和 GUI color 是静态/全局资源，纹理没有显式销毁；残影绘制异常会被吞掉。
 - 风铃路径文字读取 `WindSpiritRecall.EnemiesOnPaths`，不额外检查 WindSpiritPath 显示开关。
+- 开启墙厚显示时刷新敌人观测，并在目标文字中显示精确厚度或厚度下界。
+
+### `SceneLineOverlay`
+
+文件：`Feature/Visuals/SceneLineOverlay.cs`
+
+- 从场景渲染数据、Mesh、Terrain 和 Collider 提取并缓存世界空间线段。
+- 绘制场景几何、射线墙厚标注和薄墙候选；场景或视角变化时按节流策略重建缓存。
 
 ### `WallHack.TextRule`
 
@@ -653,10 +691,12 @@ BacktrackManager.Update
 文件：`MonoMod_Hook/HookManager.cs`
 
 - 这是具体 Hook 注册和替换中心，维护已安装 `MethodHook` 列表、FakeLag 队列和共享命令 writer。
-- `StartHook()` 注册截图、上传、本地化、速度/命令、相机、朝向、GetUserCmdBytes、Fire、FPS、UDP、命中和闪光 Hook。
+- `StartHook()` 通过生命周期锁避免重复安装，并注册截图、上传、本地化、速度/命令、命令加速、相机、朝向、GetUserCmdBytes、Fire、FPS、UDP、命中和闪光 Hook。
 - 聊天、QuickRuntimeConsole、CameraOwnerYaw 和 ControlEntityYaw 的注册当前被注释或没有调用。
 - 截图 Hook 直接阻止原抓取；上传 Hook 构造空白图数据。相机 Hook 处理第三人称和共享 silent 角度。
-- `GetUserCmdBytes_Hook()` 对第一条命令先执行 Bhop 和 AntiAim；有回溯选择时只序列化 `RenderTime - AgeMilliseconds` 并设 `PredicatedOnce=false`，不修改命令对象的 RenderTime。
+- 普通序列化和加速序列化共用 `PrepareOutgoingCommand()`，统一处理 Bhop、AntiAim、Silentbot、移动、按键和最终视角。
+- `GetUserCmdBytes_Hook()` 仅在存在有效历史目标且年龄大于 `0ms` 时回写历史时间，避免加速路径误触发无效回溯。
+- `SaveUserCmd_Hook()` 随机推进 `Counter/Seq`；`SendUserCommands` 加速路径逐条通过 TCP 发送，并在静默、回溯、反自瞄或 AirStrafe 生效时写完整命令字段。
 - 后续命令没有独立 RenderTime 字段，只写 interval、move、buttons、装备和角度。
 - `Fire_Hook()` 按原 yaw/pitch/punch/spread 计算 BulletTrace，有选择时只覆盖结果 EntityId。
 - `SendUdpData_Hook()` 独立实现 FakeLag；它不会调用 BacktrackManager 保留的 `SendQueuedPackets()`。
@@ -846,6 +886,17 @@ BacktrackManager.Update
 
 Unity 客户端物理世界只包含当前玩家碰撞体。`BacktrackTraceUtility` 的世界 Trace 用于判断历史坐标路径是否被墙体阻挡，不会创建历史碰撞体。服务器是否接受具体历史时间，仍取决于实际协议和对局环境。
 
+### 命令加速
+
+```text
+SaveUserCmd_Hook
+  -> 随机推进 Counter / Seq
+  -> SendUserCommands 加速路径
+       -> PrepareOutgoingCommand
+            -> Bhop / AntiAim / Silentbot / 回溯
+       -> SendTcpData(31, commandBytes)
+```
+
 ### Hook 安装与原方法代理
 
 ```text
@@ -886,15 +937,11 @@ Triggerbot / AutoTrigger / Aimbot
 推荐验证命令：
 
 ```powershell
-dotnet msbuild .\SkyDome.csproj /t:Rebuild /p:Configuration=Debug /p:Platform=AnyCPU /v:minimal
-dotnet msbuild .\SkyDome.csproj /t:Rebuild /p:Configuration=Release /p:Platform=x64 /v:minimal
+dotnet build .\SkyDome.sln -t:Rebuild -c Release -p:Platform=x64 --no-restore
 ```
 
 输出位置：
 
-- `Debug|AnyCPU`：`bin/Debug/SkyDome.dll`
-- `Debug|x64`：`bin/x64/Debug/SkyDome.dll`
-- `Release|AnyCPU`：`bin/Release/SkyDome.dll`，项目文件仍指定 `PlatformTarget=x64`
 - `Release|x64`：`bin/x64/Release/SkyDome.dll`
 
 ## 已知实现边界
@@ -903,7 +950,7 @@ dotnet msbuild .\SkyDome.csproj /t:Rebuild /p:Configuration=Release /p:Platform=
 - `Main.Init()` 的 Unity API 调用来自后台线程。
 - 多个静态缓存没有场景切换清理，例如 Backtrack 骨骼缓存、Resolver 字典和渲染资源。
 - Chams 与 ItemOutline 共享并竞争同一个 OutlineEffect。
-- Hook 安装、HookPool、输入字典和 Backtrack 的非线程局部对象没有统一锁。
+- Hook 安装和撤销已有生命周期锁；HookPool、输入字典和 Backtrack 的非线程局部对象仍没有统一锁。
 - Hook trampoline 复制相对寻址指令时不做重定位。
 - 普通 Aimbot 历史可见性仍要求命中当前实体 ID；只有 Silentbot 使用世界 Trace 历史路径判定。
 - FakeLag 与 Backtrack 的保留发包辅助没有连接。

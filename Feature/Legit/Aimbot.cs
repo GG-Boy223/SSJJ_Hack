@@ -166,6 +166,21 @@ namespace SkyDome.Feature.Legit
             return result.EntityId == target.Id;
         }
 
+        private bool CanTargetCurrentPosition(PlayerInfo target)
+        {
+            if (!Config.VisibleCheck)
+            {
+                return true;
+            }
+
+            if (IsVisible(target))
+            {
+                return true;
+            }
+
+            return Config.AllowThinWallAim && PenetrationDamageTelemetry.CanUpdateTarget(target);
+        }
+
         // 历史点沿用实时点相同的 BulletTrace 可见性判定，仅替换射线终点。
         private bool IsVisible(PlayerInfo target, Vector3 targetPosition)
         {
@@ -426,6 +441,11 @@ namespace SkyDome.Feature.Legit
                 ResetBacktrackSelection();
             }
 
+            if (Config.VisibleCheck && Config.AllowThinWallAim)
+            {
+                PenetrationDamageTelemetry.RefreshEnemyObservations();
+            }
+
             if (_isActive && _currentTarget != null && !_currentTarget.IsDead)
             {
                 if (_selectedBacktrackRecord != null)
@@ -450,7 +470,7 @@ namespace SkyDome.Feature.Legit
                     _isActive = false;
                     ResetBacktrackSelection();
                 }
-                else if (Config.VisibleCheck && !IsVisible(_currentTarget))
+                else if (!CanTargetCurrentPosition(_currentTarget))
                 {
                     _currentTarget = null;
                     _isActive = false;
@@ -477,7 +497,7 @@ namespace SkyDome.Feature.Legit
             {
                 if (player.Team == PlayerUpdate.LocalEntity.Team || player.IsDead) continue;
 
-                if (!Config.VisibleCheck || IsVisible(player))
+                if (CanTargetCurrentPosition(player))
                 {
                     Vector3 targetPos = GetAimPosition(player);
                     Vector3 directionToTarget = (targetPos - cameraPosition).normalized;
